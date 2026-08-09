@@ -20,4 +20,19 @@ typedef struct cl_routines {
     size_t spawn_time;
 } cl_routines;
 
+// composer
+typedef struct cl_composer_color {
+    uint8_t r, g, b;
+} cl_composer_color;
+
+typedef struct cl_composer_pixel {
+    uint8_t up;
+    uint8_t down;
+} cl_composer_pixel;
+
+typedef struct cl_composer_draw {
+    cl_composer_color color;
+    uint16_t x, y;
+} cl_composer_draw;
+
 #endif
