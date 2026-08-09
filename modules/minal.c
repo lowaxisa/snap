@@ -2,27 +2,18 @@
 
 char name[] = "cl_minal";
 
-// cl_input proccess
-size_t input_id;
-size_t input_pid = (size_t) -1;
+cl_shell_t *shell;
 
-// root proccess
-size_t root_id;
-size_t root_pid = (size_t) -1;
-
-// shell proccess
-size_t shell_id;
-size_t shell_pid = (size_t) -1;
-
-void find_proccess() {
+void shell_connect() {
     for (size_t i = 0; i < MAX_COROUTINES; i++) {
-        scl_coroutine_send(i, 1, NULL);
+        scl_string_t *temp = scl_string_new();
+        scl_string_cappend(temp, "child");
+        scl_coroutine_send(i, 7, temp);
     }
 }
 
 size_t last_input_count = 0;
 size_t last_input_head = 0;
-cl_routines *routines;
 
 void cmd_handler(scl_string_t *full_cmd) {
     scl_string_t *target = scl_string_new(); scl_string_cappend(target, " ");
@@ -31,10 +22,10 @@ void cmd_handler(scl_string_t *full_cmd) {
     scl_string_t *cmd = *(scl_string_t **) scl_array_at(args, 0);
 
     if (scl_string_ccompare(cmd, "exit")) {
-        scl_coroutine_send(shell_pid, 3, scl_string_copy(cmd));
+        scl_coroutine_send(shell->shell_pid, 7, scl_string_copy(cmd));
         scl_coroutine_yield();
     } else if (scl_string_ccompare(cmd, "clear")) {
-        scl_coroutine_send(shell_pid, 3, scl_string_copy(cmd));
+        scl_coroutine_send(shell->shell_pid, 7, scl_string_copy(cmd));
         scl_coroutine_sleep(16);
         printf("> ");
     } else if (scl_string_ccompare(cmd, "")) {
@@ -42,23 +33,19 @@ void cmd_handler(scl_string_t *full_cmd) {
     } else if (scl_string_ccompare(cmd, "help")) {
         printf("cland minal 0.1\nhelp - show this message\nclear - clear screen\nexit - exit cland\nrout - all proccess info\nkill [pid] - kill proccess\nsummon [module name] - summon module\n> ");
     } else if (scl_string_ccompare(cmd, "rout")) {
-        if (!scl_coroutine_find(root_pid)) {
-            printf("root proccess is dead...\n");
-        } else {
-            for (size_t i = 0; i < MAX_COROUTINES; i++) {
-                if (scl_coroutine_find(routines[i].pid)) {
-                    size_t uptime = (scl_ms() - routines[i].spawn_time) / 1000;
-                    printf("proccess: %s, pid: %ld, id: %ld, status: %c, uptime: %ld\n", routines[i].name, routines[i].pid, routines[i].id, routines[i].status, uptime);
-                }
+        for (size_t i = 0; i < MAX_COROUTINES; i++) {
+            if (scl_coroutine_find(shell->routines[i].pid) && shell->routines[i].name) {
+                size_t uptime = (scl_ms() - shell->routines[i].spawn_time) / 1000;
+                printf("proccess: %s, pid: %ld, id: %ld, uptime: %ld\n", shell->routines[i].name, shell->routines[i].pid, shell->routines[i].id, uptime);
             }
         }
         printf("> ");
     } else if (scl_string_ccompare(cmd, "kill") && scl_array_length(args) == 2) {
-        scl_coroutine_send(shell_pid, 3, scl_string_copy(full_cmd));
+        scl_coroutine_send(shell->shell_pid, 7, scl_string_copy(full_cmd));
         scl_coroutine_sleep(16);
         printf("> ");
     } else if (scl_string_ccompare(cmd, "summon")) {
-        scl_coroutine_send(shell_pid, 3, scl_string_copy(full_cmd));
+        scl_coroutine_send(shell->shell_pid, 7, scl_string_copy(full_cmd));
         scl_coroutine_sleep(16);
         printf("> ");
     } else {
@@ -74,12 +61,10 @@ void cmd_handler(scl_string_t *full_cmd) {
 void routine() {
     printf("minal loaded\n> ");
     scl_string_t *buffer = scl_string_new();
+    shell_connect();
 
     while (true) {
         scl_coroutine_t *proccess = &scl_coroutines[scl_current_coroutine_pid];
-
-        if (!scl_coroutine_find(input_pid) || !scl_coroutine_find(shell_pid) || !scl_coroutine_find(root_pid)) find_proccess();
-        if (scl_coroutine_find(root_pid) && !routines) scl_coroutine_send(root_pid, 3, NULL);
 
         for (size_t i = 0; i < MAX_MESSAGE; i++) {
             scl_coroutine_message *msg = &proccess->msg[i];
@@ -95,27 +80,9 @@ void routine() {
                 case 1:
                     scl_coroutine_send(msg->pid, 2, &name);
                     break;
-                case 2:
-                    char *msg_name = (char *) msg->source;
-
-                    if (strcmp(msg_name, "cl_input") == 0) {
-                        input_pid = msg->pid;
-                        input_id = msg->sender_id;
-                    }
-                    if (strcmp(msg_name, "cl_shell") == 0) {
-                        shell_pid = msg->pid;
-                        shell_id = msg->sender_id;
-                    }
-                    if (strcmp(msg_name, "cl_root") == 0) {
-                        root_pid = msg->pid;
-                        root_id = msg->sender_id;
-                    }
-
-                    break;
-                
-                case 3:
-                    if (msg->sender_id == input_id) {
-                        cl_input_pool *pool = msg->source;
+                case 6:
+                    if (msg->sender_id == shell->proccess[1].id) {
+                        cl_pool_t *pool = msg->source;
 
                         if (pool->count != last_input_count) {
                             last_input_count = pool->count;
@@ -148,16 +115,22 @@ void routine() {
 
                         last_input_head = pool->head;
                     }
-                    if (msg->sender_id == root_id) {
-                        routines = (cl_routines *) msg->source;
+                    break;
+                case 8:
+                    if (!shell) {
+                        shell = (cl_shell_t *) msg->source;
                     }
-
                     break;
             };
         }
 
-        if (scl_coroutine_find(input_pid)) {
-            scl_coroutine_send(input_pid, 3, NULL);
+        if (shell) {
+            cl_request_t input_req;
+            input_req.service = 1;
+            input_req.signal = 3;
+            input_req.source = NULL;
+
+            scl_coroutine_send(shell->shell_pid, 5, &input_req);
         }
 
         scl_coroutine_sleep(16);

@@ -5,12 +5,12 @@
 #define WIDTH 60
 #define HEIGHT (40 / 2)
 
-typedef struct cl_ansi_color {
+typedef struct cl_ansi_t {
     uint8_t r, g, b;
     uint8_t code;
-} cl_ansi_color;
+} cl_ansi_t;
 
-cl_ansi_color ansi_palette[16] = {
+cl_ansi_t ansi_palette[16] = {
     {0,   0,   0,   30}, // black
     {170, 0,   0,   31}, // red
     {0,   170, 0,   32}, // green
@@ -34,12 +34,12 @@ float channel_score(float diff) {
     return 1.0f / (float) (diff * diff);
 }
 
-int rgb_to_ansi(cl_composer_color color) {
+int rgb_to_ansi(cl_color_t color) {
     float current_score = 0.0f;
     int ansi_color = 30;
 
     for (int i = 0; i < 16; i++) {
-        cl_ansi_color ansi = ansi_palette[i];
+        cl_ansi_t ansi = ansi_palette[i];
 
         float diff_r = ansi.r - color.r;
         float diff_g = ansi.g - color.g;
@@ -55,7 +55,7 @@ int rgb_to_ansi(cl_composer_color color) {
     return ansi_color;
 }
 
-cl_composer_pixel screen[WIDTH * HEIGHT];
+cl_pixel_t screen[WIDTH * HEIGHT];
 const char *pixel_char = "▀";
 
 char name[] = "cl_composer";
@@ -84,7 +84,7 @@ void routine() {
                     scl_array_t *data = (scl_array_t *) msg->source;
 
                     for (size_t i = 0; i < scl_array_length(data); i++) {
-                        cl_composer_draw *info = (cl_composer_draw *) scl_array_at(data, i);
+                        cl_draw_t *info = (cl_draw_t *) scl_array_at(data, i);
 
                         uint16_t y = info->y / 2;
                         uint16_t x = info->x;
@@ -110,7 +110,7 @@ void routine() {
                     for (uint16_t line = 0; line < HEIGHT; line++) {
                         for (uint16_t column = 0; column < WIDTH; column++) {
                             // \033[text color;background color
-                            cl_composer_pixel *pixel = &screen[line * WIDTH + column];
+                            cl_pixel_t *pixel = &screen[line * WIDTH + column];
 
                             scl_string_cappend(buffer, "\033[");
                             snprintf(temp, sizeof(temp), "%d", pixel->up);

@@ -8,7 +8,7 @@
 void input_raw_enable(void);
 void input_raw_disable(void);
 
-cl_input_pool pool;
+cl_pool_t pool;
 
 char name[] = "cl_input";
 void routine() {
@@ -36,7 +36,7 @@ void routine() {
                     scl_coroutine_send(msg->pid, 2, &name);
                     break;
                 case 3:
-                    scl_coroutine_send(msg->pid, 3, &pool);
+                    scl_coroutine_send(msg->pid, 6, &pool);
                     break;
             };
         }

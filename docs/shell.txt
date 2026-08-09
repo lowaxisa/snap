@@ -1,0 +1,9 @@
+Shell api
+
+Send
+- Signal 5: req send/receive for a service
+- Signal 7: send a command to shell
+
+Receive
+- Signal 6: response to signal 5
+- Signal 8: response to 7
