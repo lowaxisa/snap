@@ -1,9 +1,9 @@
 Default api
 
 Send
-- Signal 0: kill proccess
-- Signal 1: ask proccess name
-- Signal 3: ask proccess info
+- Signal 0: kill process
+- Signal 1: ask process name
+- Signal 3: ask process info
 
 Receive
 - Signal 2: response to signal 1

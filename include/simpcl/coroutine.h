@@ -15,17 +15,17 @@
 #define NULL (void *)0
 #endif
 
-#define STACK_SIZE 128 * 1024
+#define STACK_SIZE 32 * 1024
 #define MAX_COROUTINES 256
 #define MAX_MESSAGE 16
 
-typedef struct scl_coroutine_message {
+typedef struct scl_message_t {
     uint16_t pid; // the coroutine was send
     size_t sender_id;
     uint16_t signal; // for control
     void *source;
     bool occupied;
-} scl_coroutine_message;
+} scl_message_t;
 
 struct scl_coroutine_t;
 typedef struct scl_coroutine_t {
@@ -34,7 +34,7 @@ typedef struct scl_coroutine_t {
     ucontext_t ctx;
     void *stack;
     void (*routine)();
-    scl_coroutine_message msg[MAX_MESSAGE];
+    scl_message_t msg[MAX_MESSAGE];
     size_t id;
 } scl_coroutine_t;
 
@@ -61,7 +61,11 @@ uint16_t scl_coroutine_summon(void (*routine)());
 void scl_coroutine_crash(int signal);
 void scl_coroutine_init();
 void scl_coroutine_sleep(size_t ms);
-char scl_coroutine_send(uint16_t pid, uint16_t signal, void *source);
 uint16_t scl_coroutine_load(const char *module);
+
+// message
+char scl_message_send(uint16_t pid, uint16_t signal, void *source);
+scl_message_t *scl_message_pool();
+void scl_message_foreach(uint16_t signal, void *source);
 
 #endif

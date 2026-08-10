@@ -1,4 +1,4 @@
-# CLAND
+# SNAP
 
-A simple system with simpcl library
+A simple system with simpcl library.
 See docs for more

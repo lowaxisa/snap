@@ -1,11 +1,11 @@
 #include "../include/cland/cland.h"
-char name[] = "cl_root";
+char name[] = "snp_root";
 
-cl_routine_t routines[MAX_COROUTINES];
+snp_routine_t routines[MAX_COROUTINES];
 
-void find_proccess() {
+void find_process() {
     for (size_t i = 0; i < MAX_COROUTINES; i++) {
-        scl_coroutine_send(i, 1, NULL);
+        scl_message_send(i, 1, NULL);
     }
 }
 
@@ -21,10 +21,10 @@ void routine() {
     routines[scl_current_coroutine_pid].spawn_time = scl_ms();
 
     while (true) {
-        scl_coroutine_t *proccess = &scl_coroutines[scl_current_coroutine_pid];
+        scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
 
         for (size_t i = 0; i < MAX_MESSAGE; i++) {
-            scl_coroutine_message *msg = &proccess->msg[i];
+            scl_message_t *msg = &process->msg[i];
 
             if (!msg->occupied) continue;
             msg->occupied = false;
@@ -32,14 +32,14 @@ void routine() {
             switch (msg->signal) {
                 case 0:
                     for (size_t j = 0; j < MAX_COROUTINES; j++) {
-                        scl_coroutine_send(j, 0, NULL);
+                        scl_message_send(j, 0, NULL);
                     }
-                    proccess->status = 'c';
+                    process->status = 'c';
                     scl_coroutine_yield();
                 case 1:
-                    scl_coroutine_send(msg->pid, 2, &name);
+                    scl_message_send(msg->pid, 2, &name);
                     break;
-                case 2: // update proccess table
+                case 2: // update process table
                     char *msg_name = (char *) msg->source;
 
                     for (size_t i = 0; i < MAX_COROUTINES; i++) {
@@ -55,12 +55,12 @@ void routine() {
 
                     break;
                 case 5:
-                    scl_coroutine_send(msg->pid, 6, &routines);
+                    scl_message_send(msg->pid, 6, &routines);
                     break;
             };
         }
 
-        find_proccess();
+        find_process();
         scl_coroutine_sleep(16);
     }
 }

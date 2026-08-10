@@ -39,9 +39,11 @@ void scl_string_input(scl_string_t *string);
 char *scl_string_cstr(scl_string_t *string);
 
 // instance
+scl_string_t *scl_string_from(const char *c_str);
 scl_string_t *scl_string_substr(scl_string_t *string, size_t index, size_t length);
 scl_string_t *scl_string_csubstr(const char *c_str, size_t index, size_t length);
 scl_array_t *scl_string_slice(scl_string_t *string, scl_string_t *target, size_t ignore, size_t limit);
+scl_array_t *scl_string_cslice(scl_string_t *string, const char *c_str, size_t ignore, size_t limit);
 scl_string_t *scl_string_join(scl_array_t *string_array, scl_string_t *separator);
 scl_string_t *scl_string_replace(scl_string_t *string, scl_string_t *target, scl_string_t *source);
 

@@ -158,6 +158,12 @@ char *scl_string_cstr(scl_string_t *string) {
 }
 
 // instance
+scl_string_t *scl_string_from(const char *c_str) {
+    scl_string_t *temp = scl_string_new();
+    scl_string_cappend(temp, c_str);
+    return temp;
+}
+
 scl_string_t *scl_string_substr(scl_string_t *string, size_t index, size_t length) {
     scl_string_t *temp = scl_string_new();
 
@@ -195,6 +201,13 @@ scl_array_t *scl_string_slice(scl_string_t *string, scl_string_t *target, size_t
     scl_string_t *part = scl_string_substr(string, last_pos, scl_array_length(string->source) - last_pos);
     scl_array_push(array, (void *) &part);
 
+    return array;
+}
+
+scl_array_t *scl_string_cslice(scl_string_t *string, const char *target, size_t ignore, size_t limit) {
+    scl_string_t *str_target = scl_string_from(target);
+    scl_array_t *array = scl_string_slice(string, str_target, ignore, limit);
+    scl_string_destroy(str_target);
     return array;
 }
 

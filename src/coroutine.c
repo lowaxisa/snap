@@ -186,29 +186,8 @@ void scl_coroutine_init() {
 void scl_coroutine_sleep(size_t ms) {
     scl_coroutine_t *c = &scl_coroutines[scl_current_coroutine_pid];
     c->wake_at = scl_ms() + ms;
-    c->status = 's';
+    c->status = (c->status != 'c') ? 's' : 'c';
     scl_coroutine_yield();
-}
-
-char scl_coroutine_send(uint16_t pid, uint16_t signal, void *source) { // s = success, f = target is full, n = target is null, y = is you
-    if (pid == scl_current_coroutine_pid) return 'y';
-
-    scl_coroutine_t *target = scl_coroutine_find(pid);
-
-    if (!target) return 'n';
-
-    for (uint16_t i = 0; i < MAX_MESSAGE; i++) {
-        if (!target->msg[i].occupied) {
-            target->msg[i].occupied = true;
-            target->msg[i].pid = scl_current_coroutine_pid;
-            target->msg[i].signal = signal;
-            target->msg[i].source = source;
-            target->msg[i].sender_id = scl_coroutines[scl_current_coroutine_pid].id;
-            return 's';
-        }
-    }
-
-    return 'f';
 }
 
 uint16_t scl_coroutine_load(const char *module) {
@@ -232,4 +211,47 @@ uint16_t scl_coroutine_load(const char *module) {
     uint16_t pid = scl_coroutine_summon(routine);
     scl_coroutines_handle[pid] = handle;
     return pid;
+}
+
+// message
+char scl_message_send(uint16_t pid, uint16_t signal, void *source) { // s = success, f = target is full, n = target is null, y = is you
+    if (pid == scl_current_coroutine_pid) return 'y';
+
+    scl_coroutine_t *target = scl_coroutine_find(pid);
+
+    if (!target) return 'n';
+
+    for (uint16_t i = 0; i < MAX_MESSAGE; i++) {
+        if (!target->msg[i].occupied) {
+            target->msg[i].occupied = true;
+            target->msg[i].pid = scl_current_coroutine_pid;
+            target->msg[i].signal = signal;
+            target->msg[i].source = source;
+            target->msg[i].sender_id = scl_coroutines[scl_current_coroutine_pid].id;
+            return 's';
+        }
+    }
+
+    return 'f';
+}
+
+scl_message_t *scl_message_pool() {
+    scl_coroutine_t *routine = &scl_coroutines[scl_current_coroutine_pid];
+
+    for (uint16_t i = 0; i < MAX_MESSAGE; i++) {
+        scl_message_t *msg = &routine->msg[i];
+
+        if (msg->occupied) {
+            msg->occupied = false;
+            return msg;
+        }
+    }
+
+    return NULL;
+}
+
+void scl_message_foreach(uint16_t signal, void *source) {
+    for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
+        scl_message_send(i, signal, source);
+    }
 }

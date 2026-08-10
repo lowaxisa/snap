@@ -8,9 +8,9 @@
 void input_raw_enable(void);
 void input_raw_disable(void);
 
-cl_pool_t pool;
+snp_pool_t pool;
 
-char name[] = "cl_input";
+char name[] = "snp_input";
 void routine() {
     printf("input loaded\n");
     input_raw_enable();
@@ -19,10 +19,10 @@ void routine() {
     pool.count = 0;
     
     while (true) {
-        scl_coroutine_t *proccess = &scl_coroutines[scl_current_coroutine_pid];
+        scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
 
         for (size_t i = 0; i < MAX_MESSAGE; i++) {
-            scl_coroutine_message *msg = &proccess->msg[i];
+            scl_message_t *msg = &process->msg[i];
 
             if (!msg->occupied) continue;
             msg->occupied = false;
@@ -30,13 +30,13 @@ void routine() {
             switch (msg->signal) {
                 case 0:
                     input_raw_disable();
-                    proccess->status = 'c';
+                    process->status = 'c';
                     scl_coroutine_yield();
                 case 1:
-                    scl_coroutine_send(msg->pid, 2, &name);
+                    scl_message_send(msg->pid, 2, &name);
                     break;
                 case 3:
-                    scl_coroutine_send(msg->pid, 6, &pool);
+                    scl_message_send(msg->pid, 6, &pool);
                     break;
             };
         }
