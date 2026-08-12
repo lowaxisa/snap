@@ -1,4 +1,4 @@
-#include "../include/cland/cland.h"
+#include "../include/snap/snap.h"
 
 char name[] = "snp_shell";
 
@@ -32,12 +32,6 @@ snp_routine_t *child_find(uint16_t pid) {
     return NULL;
 }
 
-void find_process() {
-    for (size_t i = 0; i < MAX_COROUTINES; i++) {
-        scl_message_send(i, 1, NULL);
-    }
-}
-
 void check_process() {
     if (!routines && scl_coroutine_find(snp_process[0].pid)) {
         scl_message_send(snp_process[0].pid, 5, NULL);
@@ -45,7 +39,7 @@ void check_process() {
 
     for (size_t i = 0; i < 3; i++) {
         if (!snp_process[i].name || !scl_coroutine_find(snp_process[i].pid)) {
-            find_process();
+            scl_message_foreach(1, NULL);
             scl_coroutine_sleep(16);
             break;
         }
@@ -99,51 +93,78 @@ void ask_focus() {
     in_focus = true;
 }
 
+typedef struct command_t {
+    char *cmd;
+    void (*callback)(scl_message_t *msg, scl_array_t *array);
+    uint16_t argc;
+} command_t;
+
+// commands functions
+void cmd_exit(scl_message_t *msg, scl_array_t *array) {
+    scl_message_send(snp_process[0].pid, 0, NULL);
+}
+
+void cmd_clear(scl_message_t *msg, scl_array_t *array) {
+    system("clear");
+}
+
+void cmd_kill(scl_message_t *msg, scl_array_t *array) {
+    char *process = scl_string_cstr(*(scl_string_t **) scl_array_at(array, 1));
+    snp_routine_t *coroutine = child_find(atoi(process));
+
+    if (coroutine && coroutine->pid != scl_current_coroutine_pid) {
+        scl_coroutine_t *r = scl_coroutine_find(coroutine->pid);
+        r->status = 'c';
+        coroutine->name = NULL;
+    }
+
+    free(process);
+}
+
+void cmd_summon(scl_message_t *msg, scl_array_t *array) {
+    char *process = scl_string_cstr(*(scl_string_t **) scl_array_at(array, 1));
+    child_summon(process);
+    free(process);
+}
+
+void cmd_focus(scl_message_t *msg, scl_array_t *array) {
+    scl_string_t *s = *(scl_string_t **) scl_array_at(array, 1);
+
+    if (scl_string_ccompare(s, "true")) {
+        ask_focus();
+    } else {
+        in_focus = false;
+    }
+}
+
+void cmd_child(scl_message_t *msg, scl_array_t *array) {
+    for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
+        if (child[i].id == msg->sender_id) {
+            scl_message_send(msg->pid, 8, &info);
+        }
+    }
+}
+
+// commands table
+command_t commands[] = {
+    {"exit", cmd_exit, 0},
+    {"clear", cmd_clear, 0},
+    {"kill", cmd_kill, 1},
+    {"summon", cmd_summon, 1},
+    {"focus", cmd_focus, 1},
+    {"child", cmd_child, 0},
+};
+#define COMMANDS_LENGTH (sizeof(commands) / sizeof(commands[0]))
+
 void cmd_handler(scl_message_t *msg) {
     scl_string_t *full_cmd = (scl_string_t *) msg->source;
 
-    scl_string_t *target = scl_string_new(); scl_string_cappend(target, " ");
-    scl_array_t *args = scl_string_slice(full_cmd, target, 0, (size_t) -1);
-    scl_string_destroy(target);
+    scl_array_t *args = scl_string_cslice(full_cmd, " ", 0, (size_t) -1);
     scl_string_t *cmd = *(scl_string_t **) scl_array_at(args, 0);
     size_t argc = scl_array_length(args) - 1;
 
-    // simple commands
-    if (scl_string_ccompare(cmd, "exit")) scl_message_send(snp_process[0].pid, 0, NULL);
-    if (scl_string_ccompare(cmd, "clear")) system("clear");
-
-    if (scl_string_ccompare(cmd, "kill") && argc == 1) {
-        char *process = scl_string_cstr(*(scl_string_t **) scl_array_at(args, 1));
-        snp_routine_t *coroutine = child_find(atoi(process));
-
-        if (coroutine) {
-            scl_coroutine_t *r = scl_coroutine_find(coroutine->pid);
-            r->status = 'c';
-            coroutine->name = NULL;
-        }
-
-        free(process);
-    }
-    if (scl_string_ccompare(cmd, "summon") && argc == 1) {
-        char *process = scl_string_cstr(*(scl_string_t **) scl_array_at(args, 1));
-        child_summon(process);
-        free(process);
-    }
-    if (scl_string_ccompare(cmd, "focus") && argc == 1) {
-        scl_string_t *s = *(scl_string_t **) scl_array_at(args, 1);
-
-        if (scl_string_ccompare(s, "true")) {
-            ask_focus();
-        } else {
-            in_focus = false;
-        }
-    }
-    if (scl_string_ccompare(cmd, "child")) {
-        for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
-            if (child[i].id == msg->sender_id) {
-                scl_message_send(msg->pid, 8, &info);
-            }
-        }
+    for (size_t i = 0; i < COMMANDS_LENGTH; i++) {
+        if (scl_string_ccompare(cmd, commands[i].cmd) && commands[i].argc == argc) commands[i].callback(msg, args);
     }
 
     for (size_t i = 0; i < scl_array_length(args); i++) {
@@ -171,20 +192,16 @@ void routine() {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
         check_process();
 
-        for (size_t i = 0; i < MAX_MESSAGE; i++) {
-            scl_message_t *msg = &process->msg[i];
-
-            if (!msg->occupied) continue;
-            msg->occupied = false;
-
+        scl_message_t *msg;
+        while (msg = scl_message_pool()) {
             switch (msg->signal) {
-                case 0:
+                case KILL:
                     process->status = 'c';
                     scl_coroutine_yield();
-                case 1:
+                case ASK_NAME:
                     scl_message_send(msg->pid, 2, &name);
                     break;
-                case 2:
+                case RESP_NAME:
                     update_process(msg);
                     break;
                 case 5:

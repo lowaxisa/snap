@@ -1,4 +1,4 @@
-#include "../include/cland/cland.h"
+#include "../include/snap/snap.h"
 
 #include <termios.h>
 #include <unistd.h>
@@ -21,18 +21,14 @@ void routine() {
     while (true) {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
 
-        for (size_t i = 0; i < MAX_MESSAGE; i++) {
-            scl_message_t *msg = &process->msg[i];
-
-            if (!msg->occupied) continue;
-            msg->occupied = false;
-
+        scl_message_t *msg;
+        while (msg = scl_message_pool()) {
             switch (msg->signal) {
-                case 0:
+                case KILL:
                     input_raw_disable();
                     process->status = 'c';
                     scl_coroutine_yield();
-                case 1:
+                case ASK_NAME:
                     scl_message_send(msg->pid, 2, &name);
                     break;
                 case 3:

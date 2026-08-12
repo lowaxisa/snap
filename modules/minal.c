@@ -1,16 +1,8 @@
-#include "../include/cland/cland.h"
+#include "../include/snap/snap.h"
 
 char name[] = "snp_minal";
 
-snp_shell_t *shell;
-
-void shell_connect() {
-    for (size_t i = 0; i < MAX_COROUTINES; i++) {
-        scl_string_t *temp = scl_string_new();
-        scl_string_cappend(temp, "child");
-        scl_message_send(i, 7, temp);
-    }
-}
+snp_shell_t *shell = NULL;
 
 size_t last_input_count = 0;
 size_t last_input_head = 0;
@@ -31,7 +23,7 @@ void cmd_handler(scl_string_t *full_cmd) {
     } else if (scl_string_ccompare(cmd, "")) {
         printf("> ");
     } else if (scl_string_ccompare(cmd, "help")) {
-        printf("cland minal 0.1\nhelp - show this message\nclear - clear screen\nexit - exit cland\nrout - all process info\nkill [pid] - kill process\nsummon [module name] - summon module\n> ");
+        printf("snap minal 0.1\nhelp - show this message\nclear - clear screen\nexit - exit cland\nrout - all process info\nkill [pid] - kill process\nsummon [module name] - summon module\n> ");
     } else if (scl_string_ccompare(cmd, "rout")) {
         for (size_t i = 0; i < MAX_COROUTINES; i++) {
             if (scl_coroutine_find(shell->routines[i].pid) && shell->routines[i].name) {
@@ -61,23 +53,19 @@ void cmd_handler(scl_string_t *full_cmd) {
 void routine() {
     printf("minal loaded\n> ");
     scl_string_t *buffer = scl_string_new();
-    shell_connect();
+    snp_shell_handshake(&shell);
 
     while (true) {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
 
-        for (size_t i = 0; i < MAX_MESSAGE; i++) {
-            scl_message_t *msg = &process->msg[i];
-
-            if (!msg->occupied) continue;
-            msg->occupied = false;
-
+        scl_message_t *msg;
+        while ((msg = scl_message_pool())) {
             switch (msg->signal) {
-                case 0:
+                case KILL:
                     process->status = 'c';
                     scl_string_destroy(buffer);
                     scl_coroutine_yield();
-                case 1:
+                case ASK_NAME:
                     scl_message_send(msg->pid, 2, &name);
                     break;
                 case 6:
@@ -116,22 +104,14 @@ void routine() {
                         last_input_head = pool->head;
                     }
                     break;
-                case 8:
-                    if (!shell) {
-                        shell = (snp_shell_t *) msg->source;
-                    }
-                    break;
             };
         }
 
-        if (shell) {
-            snp_request_t input_req;
-            input_req.service = 1;
-            input_req.signal = 3;
-            input_req.source = NULL;
-
-            scl_message_send(shell->shell_pid, 5, &input_req);
-        }
+        snp_request_t input_req;
+        input_req.service = 1;
+        input_req.signal = 3;
+        input_req.source = NULL;
+        scl_message_send(shell->shell_pid, 5, &input_req);
 
         scl_coroutine_sleep(16);
     }

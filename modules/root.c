@@ -1,13 +1,7 @@
-#include "../include/cland/cland.h"
+#include "../include/snap/snap.h"
 char name[] = "snp_root";
 
 snp_routine_t routines[MAX_COROUTINES];
-
-void find_process() {
-    for (size_t i = 0; i < MAX_COROUTINES; i++) {
-        scl_message_send(i, 1, NULL);
-    }
-}
 
 void routine() {
     printf("root loaded\n");
@@ -23,23 +17,17 @@ void routine() {
     while (true) {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
 
-        for (size_t i = 0; i < MAX_MESSAGE; i++) {
-            scl_message_t *msg = &process->msg[i];
-
-            if (!msg->occupied) continue;
-            msg->occupied = false;
-
+        scl_message_t *msg;
+        while (msg = scl_message_pool()) {
             switch (msg->signal) {
-                case 0:
-                    for (size_t j = 0; j < MAX_COROUTINES; j++) {
-                        scl_message_send(j, 0, NULL);
-                    }
+                case KILL:
+                    scl_message_foreach(KILL, NULL);
                     process->status = 'c';
                     scl_coroutine_yield();
-                case 1:
+                case ASK_NAME:
                     scl_message_send(msg->pid, 2, &name);
                     break;
-                case 2: // update process table
+                case RESP_NAME: // update process table
                     char *msg_name = (char *) msg->source;
 
                     for (size_t i = 0; i < MAX_COROUTINES; i++) {
@@ -60,7 +48,7 @@ void routine() {
             };
         }
 
-        find_process();
+        scl_message_foreach(ASK_NAME, NULL);
         scl_coroutine_sleep(16);
     }
 }

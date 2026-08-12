@@ -6,7 +6,7 @@ f ?= main.c
 # target dir
 d ?= ./
 # executable name
-o ?= cland
+o ?= snap
 
 C_FLAGS := -Wshadow -Wall -Wextra -ldl -rdynamic
 C_SOURCES = $(d)/$(f) $(wildcard src/*.c)
@@ -26,7 +26,7 @@ all: init modules compile run
 modules: $(MODULES_SO)
 
 init:
-	@echo "--- cland build system ---"
+	@echo "--- snap build system ---"
 	@mkdir -p .temp
 	@echo
 	@sleep 0.2
@@ -51,5 +51,6 @@ run:
 	@sleep 0.4
 	@echo
 	# you need the package time
-	cd .temp && /usr/bin/time -f "runtime: %E" ./$(o)
+	# cd .temp && /usr/bin/time -f "runtime: %E" ./$(o)
+	cd .temp && ./$(o)
 	@echo

@@ -1,5 +1,5 @@
-#ifndef snp_CLAND_H
-#define snp_CLAND_H
+#ifndef SNP_CLAND_H
+#define SNP_CLAND_H
 
 #include "../simpcl/simpcl.h"
 
