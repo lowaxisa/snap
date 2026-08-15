@@ -20,14 +20,14 @@ void routine() {
         scl_message_t *msg;
         while (msg = scl_message_pool()) {
             switch (msg->signal) {
-                case KILL:
-                    scl_message_foreach(KILL, NULL);
+                case SNP_KILL_S:
+                    scl_message_foreach(SNP_KILL_S, NULL);
                     process->status = 'c';
                     scl_coroutine_yield();
-                case ASK_NAME:
+                case SNP_NAME_A:
                     scl_message_send(msg->pid, 2, &name);
                     break;
-                case RESP_NAME: // update process table
+                case SNP_NAME_R: // update process table
                     char *msg_name = (char *) msg->source;
 
                     for (size_t i = 0; i < MAX_COROUTINES; i++) {
@@ -48,7 +48,7 @@ void routine() {
             };
         }
 
-        scl_message_foreach(ASK_NAME, NULL);
+        scl_message_foreach(SNP_NAME_A, NULL);
         scl_coroutine_sleep(16);
     }
 }

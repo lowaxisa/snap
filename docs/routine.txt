@@ -1,3 +1,5 @@
+template:
+
 #include "../include/snap/snap.h"
 
 char name[] = "snp_screen";

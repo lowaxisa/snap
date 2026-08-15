@@ -5,12 +5,12 @@
 
 #define POOL_SIZE 128
 
-typedef enum snp_message_t {
-    KILL,
-    ASK_NAME,
-    RESP_NAME,
-    ASK_INFO,
-    RESP_INFO,
+typedef enum snp_message_t { // _S is signal, _A is ask, _R is response
+    SNP_KILL_S,
+    SNP_NAME_A,
+    SNP_NAME_R,
+    SNP_INFO_A,
+    SNP_INFO_R,
 } snp_message_t;
 
 typedef struct snp_pool_t {
@@ -57,7 +57,7 @@ typedef struct snp_shell_t {
 
 static inline void snp_shell_handshake(snp_shell_t **shell) {
     // checar quem é shell
-    // enviar comando ask_name
+    // enviar comando SNP_NAME_A
     // se for shell guardar pid em array
     // mandar comando child
     // enquanto nao responder tentar reenviar, sleep e checar caixa de mensagens
@@ -78,7 +78,7 @@ static inline void snp_shell_handshake(snp_shell_t **shell) {
         scl_message_t *msg;
         scl_message_foreach(1, NULL);
         while ((msg = scl_message_pool())) {
-            if (msg->signal == RESP_NAME && msg->source) {
+            if (msg->signal == SNP_NAME_R && msg->source) {
                 if (strcmp((char *) msg->source, "snp_shell") == 0) {
                     shell_pid[msg->pid] = true;
                     continue;
@@ -99,7 +99,7 @@ static inline void snp_shell_handshake(snp_shell_t **shell) {
         scl_coroutine_sleep(16);
 
         while ((msg = scl_message_pool())) {
-            if (msg->signal == RESP_NAME && msg->source) {
+            if (msg->signal == SNP_NAME_R && msg->source) {
                 if (strcmp((char *) msg->source, "snp_shell") == 0) {
                     shell_pid[msg->pid] = true;
                     continue;

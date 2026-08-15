@@ -61,11 +61,11 @@ void routine() {
         scl_message_t *msg;
         while ((msg = scl_message_pool())) {
             switch (msg->signal) {
-                case KILL:
+                case SNP_KILL_S:
                     process->status = 'c';
                     scl_string_destroy(buffer);
                     scl_coroutine_yield();
-                case ASK_NAME:
+                case SNP_NAME_A:
                     scl_message_send(msg->pid, 2, &name);
                     break;
                 case 6:

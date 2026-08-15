@@ -10,18 +10,22 @@ snp_routine_t *routines;
 snp_routine_t child[MAX_COROUTINES];
 snp_shell_t info;
 
+char temp_name[] = "routine";
 void child_summon(char *name) {
     uint16_t pid = scl_coroutine_load(name);
     if (pid == 0xFFFF) return;
     uint16_t free_index = 0;
 
     for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
-        if (!scl_coroutine_find(child[i].pid) || !child[i].name) free_index = i;
+        if (!scl_coroutine_find(child[i].pid) || !child[i].name) {
+            free_index = i;
+            child[i].name = temp_name;
+            break;
+        }
     }
 
     child[free_index].pid = pid;
     child[free_index].id = scl_coroutine_find(pid)->id;
-    child[free_index].name = NULL;
     child[free_index].spawn_time = scl_ms();
 }
 
@@ -96,7 +100,8 @@ void ask_focus() {
 typedef struct command_t {
     char *cmd;
     void (*callback)(scl_message_t *msg, scl_array_t *array);
-    uint16_t argc;
+    uint16_t min_argc;
+    uint16_t max_argc;
 } command_t;
 
 // commands functions
@@ -147,12 +152,12 @@ void cmd_child(scl_message_t *msg, scl_array_t *array) {
 
 // commands table
 command_t commands[] = {
-    {"exit", cmd_exit, 0},
-    {"clear", cmd_clear, 0},
-    {"kill", cmd_kill, 1},
-    {"summon", cmd_summon, 1},
-    {"focus", cmd_focus, 1},
-    {"child", cmd_child, 0},
+    {"exit", cmd_exit, 0, 0},
+    {"clear", cmd_clear, 0, 0},
+    {"kill", cmd_kill, 1, 1},
+    {"summon", cmd_summon, 1, 1},
+    {"focus", cmd_focus, 1, 1},
+    {"child", cmd_child, 0, 0},
 };
 #define COMMANDS_LENGTH (sizeof(commands) / sizeof(commands[0]))
 
@@ -164,7 +169,7 @@ void cmd_handler(scl_message_t *msg) {
     size_t argc = scl_array_length(args) - 1;
 
     for (size_t i = 0; i < COMMANDS_LENGTH; i++) {
-        if (scl_string_ccompare(cmd, commands[i].cmd) && commands[i].argc == argc) commands[i].callback(msg, args);
+        if (scl_string_ccompare(cmd, commands[i].cmd) && commands[i].min_argc >= argc && argc <= commands[i].max_argc) commands[i].callback(msg, args);
     }
 
     for (size_t i = 0; i < scl_array_length(args); i++) {
@@ -186,6 +191,7 @@ void routine() {
     child[0].pid = scl_current_coroutine_pid;
     child[0].spawn_time = scl_ms();
 
+    child_summon("./screen.so");
     child_summon("./minal.so");
 
     while (true) {
@@ -195,13 +201,13 @@ void routine() {
         scl_message_t *msg;
         while (msg = scl_message_pool()) {
             switch (msg->signal) {
-                case KILL:
+                case SNP_KILL_S:
                     process->status = 'c';
                     scl_coroutine_yield();
-                case ASK_NAME:
+                case SNP_NAME_A:
                     scl_message_send(msg->pid, 2, &name);
                     break;
-                case RESP_NAME:
+                case SNP_NAME_R:
                     update_process(msg);
                     break;
                 case 5:
