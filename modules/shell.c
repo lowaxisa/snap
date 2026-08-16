@@ -5,10 +5,9 @@ char name[] = "snp_shell";
 // system process control
 // 0 = root, 1 = input, 2 = composer
 snp_routine_t snp_process[3];
-bool in_focus = false;
 snp_routine_t *routines;
 snp_routine_t child[MAX_COROUTINES];
-snp_shell_t info;
+snp_shell_t conf;
 
 char temp_name[] = "routine";
 void child_summon(char *name) {
@@ -65,19 +64,19 @@ void update_process(scl_message_t *msg) {
     if (strcmp(msg_name, "snp_root") == 0) {
         snp_process[0].name = msg_name;
         snp_process[0].pid = msg->pid;
-        snp_process[0].id = msg->sender_id;
+        snp_process[0].id = msg->id;
         snp_process[0].spawn_time = (size_t) -1;
     }
     if (strcmp(msg_name, "snp_input") == 0) {
         snp_process[1].name = msg_name;
         snp_process[1].pid = msg->pid;
-        snp_process[1].id = msg->sender_id;
+        snp_process[1].id = msg->id;
         snp_process[1].spawn_time = (size_t) -1;
     }
     if (strcmp(msg_name, "snp_composer") == 0) {
         snp_process[2].name = msg_name;
         snp_process[2].pid = msg->pid;
-        snp_process[2].id = msg->sender_id;
+        snp_process[2].id = msg->id;
         snp_process[2].spawn_time = (size_t) -1;
     }
 }
@@ -94,7 +93,7 @@ void ask_focus() {
             scl_message_send(r->pid, 7, temp);
         }
     }
-    in_focus = true;
+    conf.in_focus = true;
 }
 
 typedef struct command_t {
@@ -138,14 +137,14 @@ void cmd_focus(scl_message_t *msg, scl_array_t *array) {
     if (scl_string_ccompare(s, "true")) {
         ask_focus();
     } else {
-        in_focus = false;
+        conf.in_focus = false;
     }
 }
 
 void cmd_child(scl_message_t *msg, scl_array_t *array) {
     for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
-        if (child[i].id == msg->sender_id) {
-            scl_message_send(msg->pid, 8, &info);
+        if (child[i].id == msg->id) {
+            scl_message_send(msg->pid, 8, &conf);
         }
     }
 }
@@ -169,7 +168,7 @@ void cmd_handler(scl_message_t *msg) {
     size_t argc = scl_array_length(args) - 1;
 
     for (size_t i = 0; i < COMMANDS_LENGTH; i++) {
-        if (scl_string_ccompare(cmd, commands[i].cmd) && commands[i].min_argc >= argc && argc <= commands[i].max_argc) commands[i].callback(msg, args);
+        if (scl_string_ccompare(cmd, commands[i].cmd) && commands[i].min_argc <= argc && argc <= commands[i].max_argc) commands[i].callback(msg, args);
     }
 
     for (size_t i = 0; i < scl_array_length(args); i++) {
@@ -181,9 +180,9 @@ void cmd_handler(scl_message_t *msg) {
 
 void routine() {
     printf("shell loaded\n");
-    info.routines = child;
-    info.shell_pid = scl_current_coroutine_pid;
-    info.process = snp_process;
+    conf.routines = child;
+    conf.pid = scl_current_coroutine_pid;
+    conf.process = snp_process;
 
     // start child table
     child[0].id = scl_coroutines[scl_current_coroutine_pid].id;
@@ -211,7 +210,7 @@ void routine() {
                     update_process(msg);
                     break;
                 case 5:
-                    if (!in_focus) break;
+                    if (!conf.in_focus) break;
                     snp_request_t *req = (snp_request_t *) msg->source;
 
                     if (scl_coroutine_find(snp_process[req->service].pid)) {
@@ -223,7 +222,7 @@ void routine() {
 
                     break;
                 case 6:
-                    if (msg->sender_id == snp_process[0].id) {
+                    if (msg->id == snp_process[0].id) {
                         routines = (snp_routine_t *) msg->source;
                         ask_focus();
                     }

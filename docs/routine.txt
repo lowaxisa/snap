@@ -16,7 +16,7 @@ void routine() {
         while ((msg = scl_message_pool())) {
             switch (msg->signal) {
                 case SNP_KILL_S:
-                    process->status = 0;
+                    process->status = 'c';
                     scl_coroutine_yield();
                 case SNP_NAME_A:
                     scl_message_send(msg->pid, SNP_NAME_R, &name);

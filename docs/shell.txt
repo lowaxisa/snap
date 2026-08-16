@@ -5,5 +5,5 @@ Send
 - Signal 7: send a command to shell
 
 Receive
-- Signal 6: response to signal 5
+- Signal 6: reserved
 - Signal 8: response to 7

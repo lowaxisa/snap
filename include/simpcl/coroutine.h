@@ -21,7 +21,7 @@
 
 typedef struct scl_message_t {
     uint16_t pid; // the coroutine was send
-    size_t sender_id;
+    size_t id;
     uint16_t signal; // for control
     void *source;
     bool occupied;

@@ -31,9 +31,9 @@ void routine() {
                     char *msg_name = (char *) msg->source;
 
                     for (size_t i = 0; i < MAX_COROUTINES; i++) {
-                        if (routines[i].id != msg->sender_id && i == msg->pid && scl_coroutine_find(msg->pid)) {
+                        if (routines[i].id != msg->id && i == msg->pid && scl_coroutine_find(msg->pid)) {
                             routines[i].pid = msg->pid;
-                            routines[i].id = msg->sender_id;
+                            routines[i].id = msg->id;
                             routines[i].name = msg_name;
                             routines[i].spawn_time = scl_ms();
                         } else if (!scl_coroutine_find(i)) {

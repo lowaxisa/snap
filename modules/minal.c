@@ -15,10 +15,10 @@ void cmd_handler(scl_string_t *full_cmd) {
     scl_string_t *cmd = *(scl_string_t **) scl_array_at(args, 0);
 
     if (scl_string_ccompare(cmd, "exit")) {
-        scl_message_send(shell->shell_pid, 7, scl_string_copy(cmd));
+        scl_message_send(shell->pid, 7, scl_string_copy(cmd));
         scl_coroutine_yield();
     } else if (scl_string_ccompare(cmd, "clear")) {
-        scl_message_send(shell->shell_pid, 7, scl_string_copy(cmd));
+        scl_message_send(shell->pid, 7, scl_string_copy(cmd));
         scl_coroutine_sleep(16);
         printf("> ");
     } else if (scl_string_ccompare(cmd, "")) {
@@ -51,11 +51,11 @@ void cmd_handler(scl_string_t *full_cmd) {
         }
         printf("> ");
     } else if (scl_string_ccompare(cmd, "kill") && scl_array_length(args) == 2) {
-        scl_message_send(shell->shell_pid, 7, scl_string_copy(full_cmd));
+        scl_message_send(shell->pid, 7, scl_string_copy(full_cmd));
         scl_coroutine_sleep(16);
         printf("> ");
     } else if (scl_string_ccompare(cmd, "summon")) {
-        scl_message_send(shell->shell_pid, 7, scl_string_copy(full_cmd));
+        scl_message_send(shell->pid, 7, scl_string_copy(full_cmd));
         scl_coroutine_sleep(16);
         printf("> ");
     } else {
@@ -77,7 +77,7 @@ void routine() {
     input_req.service = 0;
     input_req.signal = 5;
     input_req.source = NULL;
-    scl_message_send(shell->shell_pid, 5, &input_req);
+    scl_message_send(shell->pid, 5, &input_req);
 
     while (true) {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
@@ -93,11 +93,11 @@ void routine() {
                     scl_message_send(msg->pid, 2, &name);
                     break;
                 case 6:
-                    if (msg->sender_id == shell->process[0].id) {
+                    if (msg->id == shell->process[0].id) {
                         routines = (snp_routine_t *) msg->source;
                     }
 
-                    if (msg->sender_id == shell->process[1].id) {
+                    if (msg->id == shell->process[1].id) {
                         snp_pool_t *pool = msg->source;
 
                         if (pool->count != last_input_count) {
@@ -137,9 +137,9 @@ void routine() {
 
         snp_request_t input_req;
         input_req.service = 1;
-        input_req.signal = 3;
+        input_req.signal = 5;
         input_req.source = NULL;
-        scl_message_send(shell->shell_pid, 5, &input_req);
+        scl_message_send(shell->pid, 5, &input_req);
 
         scl_coroutine_sleep(16);
     }

@@ -31,7 +31,7 @@ void routine() {
                 case SNP_NAME_A:
                     scl_message_send(msg->pid, 2, &name);
                     break;
-                case 3:
+                case 5:
                     scl_message_send(msg->pid, 6, &pool);
                     break;
             };

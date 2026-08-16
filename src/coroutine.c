@@ -227,7 +227,7 @@ char scl_message_send(uint16_t pid, uint16_t signal, void *source) { // s = succ
             target->msg[i].pid = scl_current_coroutine_pid;
             target->msg[i].signal = signal;
             target->msg[i].source = source;
-            target->msg[i].sender_id = scl_coroutines[scl_current_coroutine_pid].id;
+            target->msg[i].id = scl_coroutines[scl_current_coroutine_pid].id;
             return 's';
         }
     }

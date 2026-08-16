@@ -56,7 +56,8 @@ typedef struct snp_request_t {
 typedef struct snp_shell_t {
     snp_routine_t *routines;
     snp_routine_t *process;
-    uint16_t shell_pid;
+    uint16_t pid;
+    bool in_focus;
 } snp_shell_t;
 
 static inline void snp_shell_handshake(snp_shell_t **shell) {
