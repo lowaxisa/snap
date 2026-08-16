@@ -3,6 +3,7 @@
 char name[] = "snp_minal";
 
 snp_shell_t *shell = NULL;
+snp_routine_t *routines = NULL;
 
 size_t last_input_count = 0;
 size_t last_input_head = 0;
@@ -23,12 +24,29 @@ void cmd_handler(scl_string_t *full_cmd) {
     } else if (scl_string_ccompare(cmd, "")) {
         printf("> ");
     } else if (scl_string_ccompare(cmd, "help")) {
-        printf("snap minal 0.1\nhelp - show this message\nclear - clear screen\nexit - exit cland\nrout - all process info\nkill [pid] - kill process\nsummon [module name] - summon module\n> ");
+        printf(
+            "snap minal 0.1\n"
+            "help - show this message\n"
+            "clear - clear screen\n"
+            "exit - exit cland\n"
+            "rout - all shell process info\n"
+            "routa - all process info\n"
+            "kill [pid] - kill process\n"
+            "summon [module name] - summon module\n>"
+        );
     } else if (scl_string_ccompare(cmd, "rout")) {
         for (size_t i = 0; i < MAX_COROUTINES; i++) {
             if (scl_coroutine_find(shell->routines[i].pid) && shell->routines[i].name) {
                 size_t uptime = (scl_ms() - shell->routines[i].spawn_time) / 1000;
                 printf("process: %s, pid: %ld, id: %ld, uptime: %ld\n", shell->routines[i].name, shell->routines[i].pid, shell->routines[i].id, uptime);
+            }
+        }
+        printf("> ");
+    } else if (scl_string_ccompare(cmd, "routa")) {
+        for (size_t i = 0; i < MAX_COROUTINES; i++) {
+            if (scl_coroutine_find(routines[i].pid) && routines[i].name) {
+                size_t uptime = (scl_ms() - routines[i].spawn_time) / 1000;
+                printf("process: %s, pid: %ld, id: %ld, uptime: %ld\n", routines[i].name, routines[i].pid, routines[i].id, uptime);
             }
         }
         printf("> ");
@@ -55,6 +73,12 @@ void routine() {
     scl_string_t *buffer = scl_string_new();
     snp_shell_handshake(&shell);
 
+    snp_request_t input_req;
+    input_req.service = 0;
+    input_req.signal = 5;
+    input_req.source = NULL;
+    scl_message_send(shell->shell_pid, 5, &input_req);
+
     while (true) {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
 
@@ -69,6 +93,10 @@ void routine() {
                     scl_message_send(msg->pid, 2, &name);
                     break;
                 case 6:
+                    if (msg->sender_id == shell->process[0].id) {
+                        routines = (snp_routine_t *) msg->source;
+                    }
+
                     if (msg->sender_id == shell->process[1].id) {
                         snp_pool_t *pool = msg->source;
 

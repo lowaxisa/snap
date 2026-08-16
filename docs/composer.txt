@@ -1,0 +1,5 @@
+Composer api
+
+Send
+- Signal 5: put pixeis in buffer (receive snp_draw_t array)
+- Signal 6: refresh screen

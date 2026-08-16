@@ -2,9 +2,6 @@
 
 #include <unistd.h>
 
-#define WIDTH 60
-#define HEIGHT (40 / 2)
-
 typedef struct snp_ansi_t {
     uint8_t r, g, b;
     uint8_t code;
@@ -55,28 +52,51 @@ int rgb_to_ansi(snp_color_t color) {
     return ansi_color;
 }
 
-snp_pixel_t screen[WIDTH * HEIGHT];
+snp_composer_t conf;
 const char *pixel_char = "▀";
 
 char name[] = "snp_composer";
 void routine() {
     printf("composer loaded\n");
     scl_string_t *buffer = scl_string_new();
+    scl_array_t *screen = scl_array_new(sizeof(snp_pixel_t));
+    conf.width = 40;
+    conf.height = 40;
     
+    uint16_t screen_width = conf.width;
+    uint16_t screen_height = conf.height / 2;
     while (true) {
         scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
+
+        screen_width = conf.width;
+        screen_height = conf.height / 2;
+
+        if (scl_array_length(screen) != screen_height * screen_width) {
+            scl_array_destroy(screen);
+            screen = scl_array_new(sizeof(snp_pixel_t));
+            scl_array_reserve(screen, screen_height * screen_width);
+
+            snp_pixel_t temp;
+            for (size_t i = scl_array_length(screen); i < scl_array_capacity(screen); i++) {
+                scl_array_push(screen, &temp);
+            }
+        }
 
         scl_message_t *msg;
         while ((msg = scl_message_pool())) {
             switch (msg->signal) {
                 case SNP_KILL_S:
                     scl_string_destroy(buffer);
+                    scl_array_destroy(screen);
                     process->status = 'c';
                     scl_coroutine_yield();
                 case SNP_NAME_A:
-                    scl_message_send(msg->pid, 2, &name);
+                    scl_message_send(msg->pid, SNP_NAME_R, &name);
                     break;
-                case 3:
+                case SNP_INFO_A:
+                    scl_message_send(msg->pid, SNP_INFO_R, &conf);
+                    break;
+                case 5:
                     scl_array_t *data = (scl_array_t *) msg->source;
 
                     for (size_t i = 0; i < scl_array_length(data); i++) {
@@ -86,27 +106,28 @@ void routine() {
                         uint16_t x = info->x;
                         uint8_t color = rgb_to_ansi(info->color);
 
-                        uint16_t index = y * WIDTH + x;
-                        if (x >= WIDTH || y >= HEIGHT) continue;
+                        uint16_t index = y * screen_width + x;
+                        if (x >= screen_width || y >= screen_height) continue;
 
+                        snp_pixel_t *pixel = scl_array_at(screen, index);
                         if (info->y % 2 == 0) {
-                            screen[index].up = color;
+                            pixel->up = color;
                         } else {
-                            screen[index].down = color;
+                            pixel->down = color;
                         }
                     }
                     scl_array_destroy(data);
 
                     break;
-                case 4:
+                case 6:
                     scl_string_clear(buffer);
                     scl_string_cappend(buffer, "\033[H");
 
                     char temp[32];
-                    for (uint16_t line = 0; line < HEIGHT; line++) {
-                        for (uint16_t column = 0; column < WIDTH; column++) {
+                    for (uint16_t line = 0; line < screen_height; line++) {
+                        for (uint16_t column = 0; column < screen_width; column++) {
                             // \033[text color;background color
-                            snp_pixel_t *pixel = &screen[line * WIDTH + column];
+                            snp_pixel_t *pixel = scl_array_at(screen, line * screen_width + column);
 
                             scl_string_cappend(buffer, "\033[");
                             snprintf(temp, sizeof(temp), "%d", pixel->up);

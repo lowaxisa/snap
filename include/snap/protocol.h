@@ -42,6 +42,10 @@ typedef struct snp_draw_t {
     uint16_t x, y;
 } snp_draw_t;
 
+typedef struct snp_composer_t {
+    uint16_t width, height;
+} snp_composer_t;
+
 // shell
 typedef struct snp_request_t {
     uint16_t service;
@@ -91,25 +95,14 @@ static inline void snp_shell_handshake(snp_shell_t **shell) {
         }
         scl_coroutine_sleep(16);
 
-        for (size_t i = 0; i < MAX_COROUTINES; i++) {
-            if (!shell_pid[i]) continue;
+        if (count % 4 == 0) {
+            for (size_t i = 0; i < MAX_COROUTINES; i++) {
+                if (!shell_pid[i]) continue;
 
-            scl_message_send(i, 7, scl_string_from("child"));
-        }
-        scl_coroutine_sleep(16);
-
-        while ((msg = scl_message_pool())) {
-            if (msg->signal == SNP_NAME_R && msg->source) {
-                if (strcmp((char *) msg->source, "snp_shell") == 0) {
-                    shell_pid[msg->pid] = true;
-                    continue;
-                }
+                scl_message_send(i, 7, scl_string_from("child"));
             }
-            if (msg->signal != 8 || !msg->source) continue;
-            *shell = (snp_shell_t *) msg->source;
-            connected = true;
-            break;
         }
+
         scl_coroutine_sleep(16);
         count++;
     }
