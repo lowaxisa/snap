@@ -28,6 +28,10 @@ uint16_t scl_coroutine_unused_pid() {
     return 0xFFFF;
 }
 
+scl_coroutine_t *scl_coroutine_current() {
+    return &scl_coroutines[scl_current_coroutine_pid];
+}
+
 // logic
 void scl_coroutine_gc() {
     for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
@@ -191,7 +195,7 @@ void scl_coroutine_sleep(size_t ms) {
 }
 
 uint16_t scl_coroutine_load(const char *module) {
-    void *handle = dlopen(module, RTLD_LAZY);
+    void *handle = dlopen(module, RTLD_NOW);
 
     if (!handle) {
         printf("[scl_coroutine_load] dlopen error: %s\n", dlerror());
@@ -227,7 +231,7 @@ char scl_message_send(uint16_t pid, uint16_t signal, void *source) { // s = succ
             target->msg[i].pid = scl_current_coroutine_pid;
             target->msg[i].signal = signal;
             target->msg[i].source = source;
-            target->msg[i].id = scl_coroutines[scl_current_coroutine_pid].id;
+            target->msg[i].sender_id = scl_coroutines[scl_current_coroutine_pid].id;
             return 's';
         }
     }

@@ -21,7 +21,7 @@
 
 typedef struct scl_message_t {
     uint16_t pid; // the coroutine was send
-    size_t id;
+    size_t sender_id;
     uint16_t signal; // for control
     void *source;
     bool occupied;
@@ -51,6 +51,7 @@ extern size_t scl_coroutine_count; // global id count for routines
 // helpers
 scl_coroutine_t *scl_coroutine_find(uint16_t pid);
 uint16_t scl_coroutine_unused_pid();
+scl_coroutine_t *scl_coroutine_current();
 
 // logic
 void scl_coroutine_gc();
