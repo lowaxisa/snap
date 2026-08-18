@@ -19,7 +19,7 @@ void routine() {
     }
 
     while (true) {
-        scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
+        scl_coroutine_t *process = &scl_coroutines[scl_coroutine_current];
 
         scl_message_t *msg;
         while ((msg = scl_message_pool())) {

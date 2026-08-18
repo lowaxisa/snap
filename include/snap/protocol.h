@@ -75,7 +75,7 @@ static inline void snp_shell_handshake(snp_shell_t **shell) {
     bool connected = false;
     while (!connected) {
         if (count >= MAX_COUNT) {
-            scl_coroutine_t *c = &scl_coroutines[scl_current_coroutine_pid];
+            scl_coroutine_t *c = &scl_coroutines[scl_coroutine_current];
             c->status = 'c';
             scl_coroutine_yield();
         }

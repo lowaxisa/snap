@@ -66,7 +66,7 @@ void routine() {
     uint16_t screen_width = conf.width;
     uint16_t screen_height = conf.height / 2;
     while (true) {
-        scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
+        scl_coroutine_t *process = &scl_coroutines[scl_coroutine_current];
 
         screen_width = conf.width;
         screen_height = conf.height / 2;

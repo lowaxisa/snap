@@ -2,12 +2,14 @@
 
 sigjmp_buf scl_context_jmp;
 ucontext_t scl_context; // main context
-uint16_t scl_current_coroutine_pid = 0xFFFF;
-uint16_t scl_next_coroutine_pid = 0xFFFF;
+uint16_t scl_coroutine_current = 0xFFFF;
+uint16_t scl_coroutine_next = 0xFFFF;
 scl_coroutine_t scl_coroutines[MAX_COROUTINES];
 void *scl_coroutines_handle[MAX_COROUTINES]; // for modules .so
 bool scl_coroutine_inited = false;
 size_t scl_coroutine_count = 0; // global id count for routines
+uint16_t scl_coroutine_stack[MAX_COROUTINES * 2];
+uint16_t scl_coroutine_head = 0;
 
 // helpers
 scl_coroutine_t *scl_coroutine_find(uint16_t pid) { // return coroutine if is alive
@@ -28,16 +30,12 @@ uint16_t scl_coroutine_unused_pid() {
     return 0xFFFF;
 }
 
-scl_coroutine_t *scl_coroutine_current() {
-    return &scl_coroutines[scl_current_coroutine_pid];
-}
-
 // logic
 void scl_coroutine_gc() {
     for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
         scl_coroutine_t *c = &scl_coroutines[i];
 
-        if (c->stack && c->status == 'c' && i != scl_current_coroutine_pid) {
+        if (c->stack && c->status == 'c' && i != scl_coroutine_current) {
             free(c->stack);
             c->stack = NULL;
 
@@ -51,6 +49,11 @@ void scl_coroutine_gc() {
 }
 
 bool scl_coroutine_scheduler() {
+    if (scl_coroutine_head) {
+        scl_coroutine_next = scl_coroutine_stack[--scl_coroutine_head];
+        return true;
+    }
+
     bool has_coroutines_alive = false;
     uint16_t curr_index = 0;
     for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
@@ -60,7 +63,7 @@ bool scl_coroutine_scheduler() {
             has_coroutines_alive = true;
         }
 
-        if (i == scl_current_coroutine_pid) curr_index = i;
+        if (i == scl_coroutine_current) curr_index = i;
     }
 
     if (!has_coroutines_alive) return false;
@@ -87,7 +90,7 @@ bool scl_coroutine_scheduler() {
 
             if (c->status == 'r') {
                 next_coroutine_find = true;
-                scl_next_coroutine_pid = index;
+                scl_coroutine_next = index;
                 break;
             }
         }
@@ -103,13 +106,21 @@ bool scl_coroutine_scheduler() {
     return true;
 }
 
+bool signal_jump = false;
+uint16_t jump_pid = 0xFFFF;
 void scl_coroutine_yield() {
     scl_coroutine_gc();
-    if (!scl_coroutine_scheduler()) siglongjmp(scl_context_jmp, 1);
 
-    scl_coroutine_t *curr = scl_coroutine_find(scl_current_coroutine_pid);
-    scl_coroutine_t *next = scl_coroutine_find(scl_next_coroutine_pid);
-    scl_current_coroutine_pid = scl_next_coroutine_pid;
+    if (!signal_jump) {
+        if (!scl_coroutine_scheduler()) siglongjmp(scl_context_jmp, 1);
+    } else {
+        scl_coroutine_next = jump_pid;
+        signal_jump = false;
+    }
+
+    scl_coroutine_t *curr = scl_coroutine_find(scl_coroutine_current);
+    scl_coroutine_t *next = scl_coroutine_find(scl_coroutine_next);
+    scl_coroutine_current = scl_coroutine_next;
 
     if (!curr) {
         swapcontext(&scl_context, &next->ctx);
@@ -122,7 +133,7 @@ void scl_coroutine_yield() {
 }
 
 void scl_coroutine_entry() {
-    scl_coroutine_t *c = &scl_coroutines[scl_current_coroutine_pid];
+    scl_coroutine_t *c = &scl_coroutines[scl_coroutine_current];
     c->routine();
 
     c->status = 'c';
@@ -152,7 +163,7 @@ uint16_t scl_coroutine_summon(void (*routine)()) {
 
 void scl_coroutine_crash(int signal) {
     (void)signal;
-    scl_coroutine_t *routine = &scl_coroutines[scl_current_coroutine_pid];
+    scl_coroutine_t *routine = &scl_coroutines[scl_coroutine_current];
 
     routine->status = 'c';
 
@@ -163,7 +174,7 @@ void scl_coroutine_init() {
     int status = sigsetjmp(scl_context_jmp, 1);
 
     if (status == 1) {
-        scl_current_coroutine_pid = 0xFFFF;
+        scl_coroutine_current = 0xFFFF;
         scl_coroutine_gc();
         return;
     }
@@ -188,7 +199,7 @@ void scl_coroutine_init() {
 }
 
 void scl_coroutine_sleep(size_t ms) {
-    scl_coroutine_t *c = &scl_coroutines[scl_current_coroutine_pid];
+    scl_coroutine_t *c = &scl_coroutines[scl_coroutine_current];
     c->wake_at = scl_ms() + ms;
     c->status = (c->status != 'c') ? 's' : 'c';
     scl_coroutine_yield();
@@ -217,9 +228,17 @@ uint16_t scl_coroutine_load(const char *module) {
     return pid;
 }
 
+void scl_coroutine_jump(uint16_t pid) {
+    scl_coroutine_stack[scl_coroutine_head] = scl_coroutine_current;
+    scl_coroutine_head++;
+    signal_jump = true;
+    jump_pid = pid;
+    scl_coroutine_yield();
+}
+
 // message
 char scl_message_send(uint16_t pid, uint16_t signal, void *source) { // s = success, f = target is full, n = target is null, y = is you
-    if (pid == scl_current_coroutine_pid) return 'y';
+    if (pid == scl_coroutine_current) return 'y';
 
     scl_coroutine_t *target = scl_coroutine_find(pid);
 
@@ -228,10 +247,10 @@ char scl_message_send(uint16_t pid, uint16_t signal, void *source) { // s = succ
     for (uint16_t i = 0; i < MAX_MESSAGE; i++) {
         if (!target->msg[i].occupied) {
             target->msg[i].occupied = true;
-            target->msg[i].pid = scl_current_coroutine_pid;
+            target->msg[i].pid = scl_coroutine_current;
             target->msg[i].signal = signal;
             target->msg[i].source = source;
-            target->msg[i].sender_id = scl_coroutines[scl_current_coroutine_pid].id;
+            target->msg[i].id = scl_coroutines[scl_coroutine_current].id;
             return 's';
         }
     }
@@ -240,7 +259,7 @@ char scl_message_send(uint16_t pid, uint16_t signal, void *source) { // s = succ
 }
 
 scl_message_t *scl_message_pool() {
-    scl_coroutine_t *routine = &scl_coroutines[scl_current_coroutine_pid];
+    scl_coroutine_t *routine = &scl_coroutines[scl_coroutine_current];
 
     for (uint16_t i = 0; i < MAX_MESSAGE; i++) {
         scl_message_t *msg = &routine->msg[i];
@@ -258,4 +277,16 @@ void scl_message_foreach(uint16_t signal, void *source) {
     for (uint16_t i = 0; i < MAX_COROUTINES; i++) {
         scl_message_send(i, signal, source);
     }
+}
+
+char scl_message_retry(uint16_t pid, uint16_t signal, void *source, uint8_t attempts) {
+    char status;
+
+    for (uint8_t i = 0; i < attempts; i++) {
+        status = scl_message_send(pid, signal, source);
+        if (status != 'f' || i + 1 == attempts) return status;
+        scl_coroutine_jump(pid);
+    }
+
+    return 'f';
 }

@@ -87,7 +87,7 @@ void ask_focus() {
         snp_routine_t *r = &routines[i];
 
         if (!scl_coroutine_find(r->pid) || !r->name) continue;
-        if (strcmp(r->name, "snp_shell") == 0 && r->pid != scl_current_coroutine_pid) {
+        if (strcmp(r->name, "snp_shell") == 0 && r->pid != scl_coroutine_current) {
             scl_string_t *temp = scl_string_new();
             scl_string_cappend(temp, "focus false");
             scl_message_send(r->pid, 7, temp);
@@ -116,7 +116,7 @@ void cmd_kill(scl_message_t *msg, scl_array_t *array) {
     char *process = scl_string_cstr(*(scl_string_t **) scl_array_at(array, 1));
     snp_routine_t *coroutine = child_find(atoi(process));
 
-    if (coroutine && coroutine->pid != scl_current_coroutine_pid) {
+    if (coroutine && coroutine->pid != scl_coroutine_current) {
         scl_coroutine_t *r = scl_coroutine_find(coroutine->pid);
         r->status = 'c';
         coroutine->name = NULL;
@@ -181,20 +181,20 @@ void cmd_handler(scl_message_t *msg) {
 void routine() {
     printf("shell loaded\n");
     conf.routines = child;
-    conf.pid = scl_current_coroutine_pid;
+    conf.pid = scl_coroutine_current;
     conf.process = snp_process;
 
     // start child table
-    child[0].id = scl_coroutines[scl_current_coroutine_pid].id;
+    child[0].id = scl_coroutines[scl_coroutine_current].id;
     child[0].name = name;
-    child[0].pid = scl_current_coroutine_pid;
+    child[0].pid = scl_coroutine_current;
     child[0].spawn_time = scl_ms();
 
     child_summon("./screen.so");
     child_summon("./minal.so");
 
     while (true) {
-        scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
+        scl_coroutine_t *process = &scl_coroutines[scl_coroutine_current];
         check_process();
 
         scl_message_t *msg;
@@ -214,10 +214,10 @@ void routine() {
                     snp_request_t *req = (snp_request_t *) msg->source;
 
                     if (scl_coroutine_find(snp_process[req->service].pid)) {
-                        uint16_t temp = scl_current_coroutine_pid;
-                        scl_current_coroutine_pid = msg->pid;
+                        uint16_t temp = scl_coroutine_current;
+                        scl_coroutine_current = msg->pid;
                         scl_message_send(snp_process[req->service].pid, req->signal, req->source);
-                        scl_current_coroutine_pid = temp;
+                        scl_coroutine_current = temp;
                     }
 
                     break;

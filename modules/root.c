@@ -9,13 +9,13 @@ void routine() {
     scl_coroutine_load("./composer.so");
     scl_coroutine_load("./shell.so");
 
-    routines[scl_current_coroutine_pid].pid = scl_current_coroutine_pid;
-    routines[scl_current_coroutine_pid].id = scl_coroutines[scl_current_coroutine_pid].id;
-    routines[scl_current_coroutine_pid].name = name;
-    routines[scl_current_coroutine_pid].spawn_time = scl_ms();
+    routines[scl_coroutine_current].pid = scl_coroutine_current;
+    routines[scl_coroutine_current].id = scl_coroutines[scl_coroutine_current].id;
+    routines[scl_coroutine_current].name = name;
+    routines[scl_coroutine_current].spawn_time = scl_ms();
 
     while (true) {
-        scl_coroutine_t *process = &scl_coroutines[scl_current_coroutine_pid];
+        scl_coroutine_t *process = &scl_coroutines[scl_coroutine_current];
 
         scl_message_t *msg;
         while (msg = scl_message_pool()) {
