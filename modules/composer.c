@@ -72,14 +72,9 @@ void routine() {
         screen_height = conf.height / 2;
 
         if (scl_array_length(screen) != screen_height * screen_width) {
-            scl_array_destroy(screen);
-            screen = scl_array_new(sizeof(snp_pixel_t));
-            scl_array_reserve(screen, screen_height * screen_width);
-
+            scl_array_realloc(screen, screen_height * screen_width);
             snp_pixel_t temp;
-            for (size_t i = scl_array_length(screen); i < scl_array_capacity(screen); i++) {
-                scl_array_push(screen, &temp);
-            }
+            scl_array_fill(screen, &temp);
         }
 
         scl_message_t *msg;

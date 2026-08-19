@@ -46,6 +46,10 @@ typedef struct snp_composer_t {
     uint16_t width, height;
 } snp_composer_t;
 
+typedef struct snp_screen_t {
+    uint16_t width, height;
+} snp_screen_t;
+
 // shell
 typedef struct snp_request_t {
     uint16_t service;
