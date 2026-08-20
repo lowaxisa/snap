@@ -4,6 +4,8 @@ char name[] = "snp_minal";
 
 snp_shell_t *shell = NULL;
 snp_routine_t *routines = NULL;
+snp_screen_t *screen = NULL;
+uint16_t screen_pid = 0;
 
 size_t last_input_count = 0;
 size_t last_input_head = 0;
@@ -72,6 +74,39 @@ void routine() {
     printf("minal loaded\n> ");
     scl_string_t *buffer = scl_string_new();
     snp_shell_handshake(&shell);
+
+    for (size_t i = 0; i < MAX_COROUTINES; i++) {
+        scl_message_send(shell->routines[i].pid, SNP_NAME_A, NULL);
+    }
+    
+    while (!screen_pid) {
+        scl_message_t *msg;
+
+        while ((msg = scl_message_pool())) {
+            if (msg->source == NULL) continue;
+            if (strcmp((char *) msg->source, "snp_screen") == 0) {
+                screen_pid = msg->pid;
+                break;
+            }
+        }
+
+        scl_coroutine_sleep(16);
+    }
+
+    scl_message_send(screen_pid, SNP_INFO_A, NULL);
+
+    while (!screen) {
+        scl_message_t *msg;
+
+        while ((msg = scl_message_pool())) {
+            if (screen_pid == msg->pid) {
+                screen = (snp_screen_t *) msg->source;
+                break;
+            }
+        }
+        
+        scl_coroutine_sleep(16);
+    }
 
     snp_request_t input_req;
     input_req.service = 0;

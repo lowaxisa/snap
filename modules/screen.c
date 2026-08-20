@@ -75,9 +75,14 @@ void routine() {
                     if (!shell->in_focus) break;
 
                     snp_request_t req;
+
+                    // copy screen
+                    scl_array_t *temp = screen;
+                    screen = scl_array_copy(screen, NULL);
+
                     req.service = 2;
                     req.signal = 5;
-                    req.source = screen;
+                    req.source = temp;
                     scl_message_send(shell->pid, 5, &req);
                     scl_coroutine_jump(shell->pid);
                     scl_coroutine_jump(shell->process[2].pid);
@@ -85,8 +90,6 @@ void routine() {
                     scl_message_send(shell->pid, 5, &req);
                     scl_coroutine_jump(shell->pid);
                     scl_coroutine_jump(shell->process[2].pid);
-
-                    screen = scl_array_new(sizeof(snp_draw_t));
 
                     break;
             }
